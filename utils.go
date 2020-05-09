@@ -2,14 +2,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
 	mathrand "math/rand"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/logrusorgru/aurora"
+	"github.com/mikesmitty/edkey"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -26,6 +29,55 @@ var (
 	certHolder = make([]ssh.PublicKey, 0)
 	holderLock = sync.Mutex{}
 )
+
+func getRandomPortInRange(portRange string) uint32 {
+	var bindPort uint32
+
+	ranges := strings.Split(strings.TrimSpace(portRange), ",")
+	possible := [][]uint64{}
+	for _, r := range ranges {
+		ends := strings.Split(strings.TrimSpace(r), "-")
+
+		if len(ends) == 1 {
+			ui, err := strconv.ParseUint(ends[0], 0, 64)
+			if err != nil {
+				return 0
+			}
+
+			possible = append(possible, []uint64{uint64(ui)})
+		} else if len(ends) == 2 {
+			ui1, err := strconv.ParseUint(ends[0], 0, 64)
+			if err != nil {
+				return 0
+			}
+
+			ui2, err := strconv.ParseUint(ends[1], 0, 64)
+			if err != nil {
+				return 0
+			}
+
+			possible = append(possible, []uint64{uint64(ui1), uint64(ui2)})
+		}
+	}
+
+	mathrand.Seed(time.Now().UnixNano())
+	locHolder := mathrand.Intn(len(possible))
+
+	if len(possible[locHolder]) == 1 {
+		bindPort = uint32(possible[locHolder][0])
+	} else if len(possible[locHolder]) == 2 {
+		bindPort = uint32(mathrand.Intn(int(possible[locHolder][1]-possible[locHolder][0])) + int(possible[locHolder][0]))
+	}
+
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", bindPort))
+	if err != nil {
+		return getRandomPortInRange(portRange)
+	}
+
+	ln.Close()
+
+	return bindPort
+}
 
 func checkPort(port uint32, portRanges string) (uint32, error) {
 	ranges := strings.Split(strings.TrimSpace(portRanges), ",")
@@ -43,9 +95,7 @@ func checkPort(port uint32, portRanges string) (uint32, error) {
 				checks = true
 				continue
 			}
-		}
-
-		if len(ends) == 2 {
+		} else if len(ends) == 2 {
 			ui1, err := strconv.ParseUint(ends[0], 0, 64)
 			if err != nil {
 				return 0, err
@@ -79,7 +129,7 @@ func watchCerts() {
 
 	go func() {
 		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, os.Kill)
+		signal.Notify(c, os.Interrupt)
 		go func() {
 			for range c {
 				watcher.Close()
@@ -128,10 +178,9 @@ func loadCerts() {
 			}
 			return rest
 		}
-		rest := keyHandle(keyBytes, fileInfo)
 
-		if len(rest) > 0 {
-			keyHandle(rest, fileInfo)
+		for ok := true; ok; ok = len(keyBytes) > 0 {
+			keyBytes = keyHandle(keyBytes, fileInfo)
 		}
 	}
 
@@ -178,7 +227,7 @@ func getSSHConfig() *ssh.ServerConfig {
 }
 
 func generatePrivateKey(passphrase string) []byte {
-	pk, err := rsa.GenerateKey(rand.Reader, 2048)
+	_, pk, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -186,8 +235,8 @@ func generatePrivateKey(passphrase string) []byte {
 	log.Println("Generated RSA Keypair")
 
 	pemBlock := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(pk),
+		Type:  "OPENSSH PRIVATE KEY",
+		Bytes: edkey.MarshalED25519PrivateKey(pk),
 	}
 
 	var pemData []byte
@@ -203,7 +252,10 @@ func generatePrivateKey(passphrase string) []byte {
 		pemData = pem.EncodeToMemory(pemBlock)
 	}
 
-	ioutil.WriteFile(*pkLoc, pemData, 0644)
+	err = ioutil.WriteFile(*pkLoc, pemData, 0644)
+	if err != nil {
+		log.Println("Error writing to file:", err)
+	}
 
 	return pemData
 }
@@ -245,13 +297,20 @@ func inBannedList(host string, bannedList []string) bool {
 func getOpenHost(addr string, state *State, sshConn *SSHConnection) string {
 	getUnusedHost := func() string {
 		first := true
-		host := strings.ToLower(addr + "." + *rootDomain)
+
+		hostExtension := ""
+		if *appendUserToSubdomain {
+			hostExtension = *userSubdomainSeparator + sshConn.SSHConn.User()
+		}
+
+		host := strings.ToLower(addr + hostExtension + "." + *rootDomain)
+
 		getRandomHost := func() string {
 			return strings.ToLower(RandStringBytesMaskImprSrc(*domainLen) + "." + *rootDomain)
 		}
 		reportUnavailable := func(unavailable bool) {
 			if first && unavailable {
-				sshConn.Messages <- "This subdomain is unavaible. Assigning a random subdomain."
+				sendMessage(sshConn, aurora.Sprintf("The subdomain %s is unavailable. Assigning a random subdomain.", aurora.Red(host)), true)
 			}
 		}
 
@@ -275,6 +334,41 @@ func getOpenHost(addr string, state *State, sshConn *SSHConnection) string {
 	}
 
 	return getUnusedHost()
+}
+
+func getOpenAlias(addr string, port string, state *State, sshConn *SSHConnection) string {
+	getUnusedAlias := func() string {
+		first := true
+		alias := fmt.Sprintf("%s:%s", strings.ToLower(addr), port)
+		getRandomAlias := func() string {
+			return fmt.Sprintf("%s:%s", strings.ToLower(RandStringBytesMaskImprSrc(*domainLen)), port)
+		}
+		reportUnavailable := func(unavailable bool) {
+			if first && unavailable {
+				sendMessage(sshConn, aurora.Sprintf("The alias %s is unavaible. Assigning a random alias.", aurora.Red(alias)), true)
+			}
+		}
+
+		checkAlias := func(checkAlias string) bool {
+			if *forceRandomSubdomain || !first || inBannedList(alias, bannedSubdomainList) {
+				reportUnavailable(true)
+				alias = getRandomAlias()
+			}
+
+			_, ok := state.TCPListeners.Load(alias)
+			reportUnavailable(ok)
+
+			first = false
+			return ok
+		}
+
+		for checkAlias(alias) {
+		}
+
+		return alias
+	}
+
+	return getUnusedAlias()
 }
 
 // RandStringBytesMaskImprSrc creates a random string of length n
@@ -303,4 +397,23 @@ func RandStringBytesMaskImprSrc(n int) string {
 	}
 
 	return string(b)
+}
+
+func sendMessage(sshConn *SSHConnection, message string, block bool) {
+	if block {
+		sshConn.Messages <- message
+		return
+	}
+
+	for i := 0; i < 5; {
+		select {
+		case <-sshConn.Close:
+			return
+		case sshConn.Messages <- message:
+			return
+		default:
+			time.Sleep(100 * time.Millisecond)
+			i++
+		}
+	}
 }

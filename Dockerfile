@@ -1,11 +1,12 @@
-FROM golang:1.12.5-alpine as builder
+FROM golang:1.13.2-alpine as builder
 LABEL maintainer="Antonio Mika <me@antoniomika.me>"
 
-RUN apk add --no-cache git gcc musl-dev
-
 ENV GOCACHE /gocache
+ENV CGO_ENABLED 0
 
-WORKDIR /usr/local/go/src/github.com/antoniomika/sish
+WORKDIR /app
+
+RUN apk add --no-cache git
 
 COPY go.mod .
 COPY go.sum .
@@ -14,15 +15,21 @@ RUN go mod download
 
 COPY . .
 
-RUN go install
+ARG VERSION=dev
+ARG COMMIT=none
+ARG DATE=unknown
+
+RUN go install -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}"
 RUN go test -i ./...
 
-FROM alpine
+FROM scratch
 LABEL maintainer="Antonio Mika <me@antoniomika.me>"
 
-COPY --from=builder /usr/local/go/src/github.com/antoniomika/sish /sish
-COPY --from=builder /go/bin/sish /sish/sish
+WORKDIR /app
 
-WORKDIR /sish
+COPY --from=builder /tmp /tmp
+COPY --from=builder /app/pubkeys /app/pubkeys
+COPY --from=builder /app/templates /app/templates
+COPY --from=builder /go/bin/sish /app/sish
 
-ENTRYPOINT ["/sish/sish"]
+ENTRYPOINT ["/app/sish"]
