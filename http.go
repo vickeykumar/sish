@@ -27,6 +27,7 @@ type ProxyHolder struct {
 	ProxyHost string
 	ProxyTo   string
 	Scheme    string
+	Weight	  uint		// weight of a single holder for lb.
 	SSHConn   *SSHConnection
 }
 
@@ -43,6 +44,7 @@ func startHTTPHandler(state *State) {
 	r.LoadHTMLGlob("templates/*")
 	r.Use(func(c *gin.Context) {
 		c.Set("startTime", time.Now())
+		SetSeed(c) // save seed to the context
 		clientIPAddr, _, err := net.SplitHostPort(c.Request.RemoteAddr)
 		if state.IPFilter.Blocked(c.ClientIP()) || state.IPFilter.Blocked(clientIPAddr) || err != nil {
 			c.AbortWithStatus(http.StatusForbidden)
@@ -85,8 +87,16 @@ func startHTTPHandler(state *State) {
 			hostname := strings.Split(param.Request.Host, ":")[0]
 			loc, ok := state.HTTPListeners.Load(hostname)
 			if ok {
-				proxyHolder := loc.(*ProxyHolder)
-				sendMessage(proxyHolder.SSHConn, strings.TrimSpace(logLine), true)
+				serverpool := loc.(*ServerPool)
+				val, ok := param.Keys[SEED]	//retrieve seed for this context
+				var seed int64 = -1
+				if ok {
+					seed = val.(int64)
+				}
+				proxyHolder, ok := serverpool.Select(seed)
+				if ok {
+					sendMessage(proxyHolder.SSHConn, strings.TrimSpace(logLine), true)
+				}
 			}
 		}
 
@@ -105,7 +115,7 @@ func startHTTPHandler(state *State) {
 			return
 		}
 
-		loc, ok := state.HTTPListeners.Load(hostname)
+		loc, ok := state.HTTPListeners.LoadFromServerPool(hostname, c)
 		if !ok {
 			err := c.AbortWithError(http.StatusNotFound, fmt.Errorf("cannot find connection for host: %s", hostname))
 			if err != nil {
@@ -114,6 +124,7 @@ func startHTTPHandler(state *State) {
 			return
 		}
 
+		log.Println("httplistener : ", hostname, loc)
 		reqBody, err := ioutil.ReadAll(c.Request.Body)
 		if err != nil {
 			log.Println("Error reading request body:", err)
@@ -130,7 +141,7 @@ func startHTTPHandler(state *State) {
 
 		c.Request.Header.Set("X-Forwarded-Proto", requestedScheme)
 
-		proxyHolder := loc.(*ProxyHolder)
+		proxyHolder := loc
 
 		url := *c.Request.URL
 		url.Host = "local"

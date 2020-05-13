@@ -33,7 +33,7 @@ type State struct {
 	Console        *WebConsole
 	SSHConnections *sync.Map
 	Listeners      *sync.Map
-	HTTPListeners  *sync.Map
+	HTTPListeners  *HTTPListenerMap
 	TCPListeners   *sync.Map
 	IPFilter       *ipfilter.IPFilter
 }
@@ -52,8 +52,8 @@ var (
 	verifyOrigin           = flag.Bool("sish.verifyorigin", true, "Whether or not to verify origin on websocket connection")
 	verifySSL              = flag.Bool("sish.verifyssl", true, "Whether or not to verify SSL on proxy connection")
 	httpsEnabled           = flag.Bool("sish.httpsenabled", false, "Whether or not to listen for HTTPS connections")
-	redirectRoot           = flag.Bool("sish.redirectroot", true, "Whether or not to redirect the root domain")
-	redirectRootLocation   = flag.String("sish.redirectrootlocation", "https://github.com/antoniomika/sish", "Where to redirect the root domain to")
+	redirectRoot           = flag.Bool("sish.redirectroot", false, "Whether or not to redirect the root domain")
+	redirectRootLocation   = flag.String("sish.redirectrootlocation", "https://github.com/vickeykumar/sish-lb", "Where to redirect the root domain to")
 	httpsPems              = flag.String("sish.httpspems", "ssl/", "The location of pem files for HTTPS (fullchain.pem and privkey.pem)")
 	rootDomain             = flag.String("sish.domain", "ssi.sh", "The domain for HTTP(S) multiplexing")
 	domainLen              = flag.Int("sish.subdomainlen", 3, "The length of the random subdomain to generate")
@@ -88,12 +88,17 @@ var (
 	serviceConsoleToken    = flag.String("sish.serviceconsoletoken", "", "The token to use for service access. Auto generated if empty.")
 	pingClient             = flag.Bool("sish.pingclient", true, "Whether or not ping the client.")
 	pingClientInterval     = flag.Int("sish.pingclientinterval", 10, "Interval in seconds to ping a client to ensure it is up.")
+	logEnabled             = flag.Bool("sish.logenabled", false, "whether or not to enable logging")
+	lbEnabled              = flag.Bool("sish.lbenabled", false, "Whether or not to enable load balancing accross multiple connections for same host.")
 	bannedSubdomainList    = []string{""}
 	filter                 *ipfilter.IPFilter
 )
 
 func main() {
 	flag.Parse()
+	if *logEnabled {
+		InitLogging("sish-lb")
+	}
 
 	_, httpPortString, err := net.SplitHostPort(*httpAddr)
 	if err != nil {
@@ -168,7 +173,7 @@ func main() {
 	state := &State{
 		SSHConnections: &sync.Map{},
 		Listeners:      &sync.Map{},
-		HTTPListeners:  &sync.Map{},
+		HTTPListeners:  &HTTPListenerMap{},
 		TCPListeners:   &sync.Map{},
 		IPFilter:       filter,
 		Console:        NewWebConsole(),
@@ -196,7 +201,7 @@ func main() {
 				})
 				log.Println("===HTTP Clients===")
 				state.HTTPListeners.Range(func(key, value interface{}) bool {
-					log.Println(key, value)
+					log.Println(key, value.(*ServerPool).ToString())
 					return true
 				})
 				log.Println("===TCP Aliases====")
@@ -216,7 +221,7 @@ func main() {
 				})
 				log.Print("========End==========\n\n")
 
-				time.Sleep(2 * time.Second)
+				time.Sleep(10 * time.Second)
 			}
 		}()
 	}

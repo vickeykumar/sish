@@ -1,4 +1,4 @@
-module github.com/antoniomika/sish
+module github.com/vickeykumar/sish-lb
 
 require (
 	github.com/fsnotify/fsnotify v1.4.7
@@ -12,9 +12,11 @@ require (
 	github.com/logrusorgru/aurora v0.0.0-20191116043053-66b7ad493a23
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mikesmitty/edkey v0.0.0-20170222072505-3356ea4e686a
+	github.com/nsf/gocode v0.0.0-20190302080247-5bee97b48836 // indirect
 	github.com/oschwald/maxminddb-golang v1.5.0 // indirect
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
 	github.com/ugorji/go v1.1.7 // indirect
+	github.com/natefinch/lumberjack v2.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20191108234033-bd318be0434a
 	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd // indirect
 	gopkg.in/yaml.v2 v2.2.5 // indirect

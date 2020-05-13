@@ -166,8 +166,11 @@ func (c *WebConsole) HandleDisconnectRoute(hostname string, g *gin.Context) {
 		c.State.HTTPListeners.Range(func(key interface{}, val interface{}) bool {
 			httpListener := key.(string)
 			if routeName == httpListener {
-				listenerAddrTmp := val.(*ProxyHolder)
-				listenerAddr = listenerAddrTmp.ProxyTo
+				listenerAddrpool := val.(*ServerPool)
+				listenerAddrTmp, ok := listenerAddrpool.Select(GetSeed(g))
+				if ok {
+					listenerAddr = listenerAddrTmp.ProxyTo
+				}
 			}
 
 			return true
@@ -312,11 +315,15 @@ func (c *WebConsole) HandleClients(hostname string, g *gin.Context) {
 		httpListeners := map[string]string{}
 		c.State.HTTPListeners.Range(func(key interface{}, val interface{}) bool {
 			httpListener := key.(string)
-			aliasAddress := val.(*ProxyHolder)
 
-			for _, v := range listeners {
-				if v == aliasAddress.ProxyTo {
-					httpListeners[httpListener] = aliasAddress.ProxyTo
+			aliasAddresspool := val.(*ServerPool)
+			aliasAddress, ok := aliasAddresspool.Select(GetSeed(g))
+
+			if ok {
+				for _, v := range listeners {
+					if v == aliasAddress.ProxyTo {
+						httpListeners[httpListener] = aliasAddress.ProxyTo
+					}
 				}
 			}
 

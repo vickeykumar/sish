@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"github.com/natefinch/lumberjack"
 	mathrand "math/rand"
 	"net"
 	"os"
@@ -29,6 +30,26 @@ var (
 	certHolder = make([]ssh.PublicKey, 0)
 	holderLock = sync.Mutex{}
 )
+
+const LOG_PATH = "/gottyTraces"
+
+func InitLogging(name string) {
+	err := os.MkdirAll(LOG_PATH, 0755)
+	if err == nil {
+		log.Printf("Writting logs in : " + LOG_PATH + "/" + name + ".log")
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   LOG_PATH + "/" + name + ".log",
+			MaxSize:    10, // megabytes
+			MaxBackups: 3,
+			MaxAge:     30, //days
+		})
+		log.Printf("Writting logs in : " + LOG_PATH + "/" + name + ".log")
+	} else {
+		log.Printf("Error: unable to create log directory: " + LOG_PATH)
+		os.Exit(3)
+	}
+}
 
 func getRandomPortInRange(portRange string) uint32 {
 	var bindPort uint32
@@ -303,7 +324,12 @@ func getOpenHost(addr string, state *State, sshConn *SSHConnection) string {
 			hostExtension = *userSubdomainSeparator + sshConn.SSHConn.User()
 		}
 
-		host := strings.ToLower(addr + hostExtension + "." + *rootDomain)
+		var host string
+		if !*redirectRoot && (addr == "" || addr == "localhost") {
+			host = *rootDomain
+		} else {
+			host = strings.ToLower(addr + hostExtension + "." + *rootDomain)
+		}
 
 		getRandomHost := func() string {
 			return strings.ToLower(RandStringBytesMaskImprSrc(*domainLen) + "." + *rootDomain)
@@ -315,6 +341,10 @@ func getOpenHost(addr string, state *State, sshConn *SSHConnection) string {
 		}
 
 		checkHost := func(checkHost string) bool {
+			if *lbEnabled {
+				// to break loop and select user given host
+				return false
+			}
 			if *forceRandomSubdomain || !first || inBannedList(host, bannedSubdomainList) {
 				reportUnavailable(true)
 				host = getRandomHost()

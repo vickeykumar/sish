@@ -129,10 +129,11 @@ func handleRemoteForward(newRequest *ssh.Request, sshConn *SSHConnection, state 
 			ProxyTo:   chanListener.Addr().String(),
 			Scheme:    scheme,
 			SSHConn:   sshConn,
+			Weight:    DEFAULT_WEIGHT,
 		}
 
-		state.HTTPListeners.Store(host, pH)
-		defer state.HTTPListeners.Delete(host)
+		state.HTTPListeners.AddtoServerPool(host, pH)
+		defer state.HTTPListeners.DeleteFromServerPool(host, pH)
 
 		if *adminEnabled || *serviceConsoleEnabled {
 			routeToken := *serviceConsoleToken
