@@ -31,7 +31,7 @@ var (
 	holderLock = sync.Mutex{}
 )
 
-const LOG_PATH = "/gottyTraces"
+const LOG_PATH = "/tmp"
 
 func InitLogging(name string) {
 	err := os.MkdirAll(LOG_PATH, 0755)
