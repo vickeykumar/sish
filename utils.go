@@ -51,6 +51,16 @@ func InitLogging(name string) {
 	}
 }
 
+func Initconfig() {
+	if !filepath.IsAbs(*authKeysDir) {
+		*authKeysDir = filepath.Join(*configDir, *authKeysDir)
+	}
+
+	if !filepath.IsAbs(*pkLoc) {
+		*pkLoc = filepath.Join(*configDir, *pkLoc)
+	}
+}
+
 func getRandomPortInRange(portRange string) uint32 {
 	var bindPort uint32
 

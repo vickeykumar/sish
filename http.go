@@ -41,7 +41,7 @@ func startHTTPHandler(state *State) {
 	gin.ForceConsoleColor()
 
 	r := gin.New()
-	r.LoadHTMLGlob("templates/*")
+	r.LoadHTMLGlob(filepath.Join(*configDir, "templates/*"))
 	r.Use(func(c *gin.Context) {
 		c.Set("startTime", time.Now())
 		SetSeed(c) // save seed to the context
