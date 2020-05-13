@@ -335,7 +335,7 @@ func getOpenHost(addr string, state *State, sshConn *SSHConnection) string {
 		}
 
 		var host string
-		if !*redirectRoot && (addr == "" || addr == "localhost") {
+		if !*redirectRoot && (addr == "" || addr == "localhost" || addr == *rootDomain) {
 			host = *rootDomain
 		} else {
 			host = strings.ToLower(addr + hostExtension + "." + *rootDomain)
