@@ -9,6 +9,7 @@ import (
 	"time"
 	"hash/fnv"
 	"github.com/gin-gonic/gin"
+	"net"
 )
 
 const DEFAULT_WEIGHT=10
@@ -165,10 +166,12 @@ func (m *HTTPListenerMap) AddtoServerPool(hostname string, proxyholder *ProxyHol
 		serverpool = spool.(*ServerPool)
 	}
 	proxyholder.Weight = DEFAULT_WEIGHT
-	if hostname == "localhost" {
+	clientname, _, _ := net.SplitHostPort(proxyholder.SSHConn.SSHConn.RemoteAddr().String())
+	if clientname == "localhost" || clientname == "127.0.0.1" {
 		proxyholder.Weight = 1 // less weight for localhost
 	}
 	serverpool.Add(proxyholder)
+	log.Println(" client added to serverpool: ",clientname, proxyholder)
 }
 
 // store

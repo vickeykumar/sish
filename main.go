@@ -341,7 +341,8 @@ func main() {
 					tickDuration := time.Duration(*pingClientInterval) * time.Second
 					ticker := time.Tick(tickDuration)
 					for {
-						err := conn.SetDeadline(time.Now().Add(tickDuration).Add(time.Duration(*idleTimeout) * time.Second))
+						// read deadline 2*ce the ping interval
+						err := conn.SetReadDeadline(time.Now().Add(tickDuration).Add(tickDuration))
 						if err != nil {
 							log.Println("Unable to set deadline")
 						}
@@ -350,8 +351,11 @@ func main() {
 						case <-ticker:
 							_, _, err := sshConn.SendRequest("keepalive@sish", true, nil)
 							if err != nil {
-								log.Println("Error retrieving keepalive response")
+								log.Println("Error retrieving keepalive response: from ", clientRemote, err.Error())
 								return
+							}
+							if *debug {
+								log.Println("ticker expired for : ", clientRemote)
 							}
 						case <-holderConn.Close:
 							return
