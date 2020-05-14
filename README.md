@@ -3,6 +3,14 @@ sish
 
 An open source serveo/ngrok alternative.
 
+
+LOAD BALANCER FEATURE
+---------------------
+
+Load Balancing feature is added. you can add more than one instance against same domain/subdomain name. It uses a randomised weighted
+algorithm to distributes its loads to respective backends. please use -sish.lbenabled flag for the same.
+
+
 Deploy
 ------
 
@@ -99,93 +107,99 @@ CLI Flags
 
 ```text
 sh-3.2# ./sish -h
-Usage of ./sish:
+Usage of ./sish-lb:
   -sish.addr string
-        The address to listen for SSH connections (default "localhost:2222")
+      The address to listen for SSH connections (default "localhost:2222")
   -sish.adminenabled
-        Whether or not to enable the admin console
+      Whether or not to enable the admin console
   -sish.admintoken string
-        The token to use for admin access (default "S3Cr3tP4$$W0rD")
+      The token to use for admin access (default "S3Cr3tP4$$W0rD")
   -sish.appendusertosubdomain
-        Whether or not to append the user to the subdomain
+      Whether or not to append the user to the subdomain
   -sish.auth
-        Whether or not to require auth on the SSH service
+      Whether or not to require auth on the SSH service
   -sish.bannedcountries string
-        A comma separated list of banned countries
+      A comma separated list of banned countries
   -sish.bannedips string
-        A comma separated list of banned ips
+      A comma separated list of banned ips
   -sish.bannedsubdomains string
-        A comma separated list of banned subdomains (default "localhost")
+      A comma separated list of banned subdomains (default "localhost")
   -sish.bindrandom
-        Bind ports randomly (OS chooses) (default true)
+      Bind ports randomly (OS chooses) (default true)
   -sish.bindrange string
-        Ports that are allowed to be bound (default "0,1024-65535")
+      Ports that are allowed to be bound (default "0,1024-65535")
   -sish.cleanupunbound
-        Whether or not to cleanup unbound (forwarded) SSH connections (default true)
-  -sish.debug
-        Whether or not to print debug information
-  -sish.domain string
-        The domain for HTTP(S) multiplexing (default "ssi.sh")
-  -sish.forcerandomsubdomain
-        Whether or not to force a random subdomain (default true)
-  -sish.http string
-        The address to listen for HTTP connections (default "localhost:80")
-  -sish.httpport int
-        The port to use for http command output
-  -sish.https string
-        The address to listen for HTTPS connections (default "localhost:443")
-  -sish.httpsenabled
-        Whether or not to listen for HTTPS connections
-  -sish.httpspems string
-        The location of pem files for HTTPS (fullchain.pem and privkey.pem) (default "ssl/")
-  -sish.httpsport int
-        The port to use for https command output
-  -sish.idletimeout int
-        Number of seconds to wait for activity before closing a connection (default 5)
+      Whether or not to cleanup unbound (forwarded) SSH connections (default true)
+  -sish.configdir string
+      config directory for sish
   -sish.connecttimeout int
-        Number of seconds the ssh login process is allowed before closing a connection (default 5)
+      Number of seconds the ssh login process is allowed before closing a connection (default 5)
+  -sish.debug
+      Whether or not to print debug information
+  -sish.domain string
+      The domain for HTTP(S) multiplexing (default "ssi.sh")
+  -sish.forcerandomsubdomain
+      Whether or not to force a random subdomain (default true)
+  -sish.http string
+      The address to listen for HTTP connections (default "localhost:80")
+  -sish.httpport int
+      The port to use for http command output
+  -sish.https string
+      The address to listen for HTTPS connections (default "localhost:443")
+  -sish.httpsenabled
+      Whether or not to listen for HTTPS connections
+  -sish.httpspems string
+      The location of pem files for HTTPS (fullchain.pem and privkey.pem) (default "ssl/")
+  -sish.httpsport int
+      The port to use for https command output
+  -sish.idletimeout int
+      Number of seconds to wait for activity before closing a connection (default 5)
   -sish.keysdir string
-        Directory for public keys for pubkey auth (default "pubkeys/")
+      Directory for public keys for pubkey auth (default "pubkeys/")
+  -sish.lbenabled
+      Whether or not to enable load balancing accross multiple connections for same host.
+  -sish.logenabled
+      whether or not to enable logging
   -sish.logtoclient
-        Whether or not to log http requests to the client
+      Whether or not to log http requests to the client
   -sish.password string
-        Password to use for password auth (default "S3Cr3tP4$$W0rD")
+      Password to use for password auth (default "S3Cr3tP4$$W0rD")
   -sish.pingclient
-        Whether or not ping the client. (default true)
+      Whether or not ping the client. (default true)
   -sish.pingclientinterval int
-        Interval in seconds to ping a client to ensure it is up. (default 10)
+      Interval in seconds to ping a client to ensure it is up. (default 10)
   -sish.pkloc string
-        SSH server private key (default "keys/ssh_key")
+      SSH server private key (default "keys/ssh_key")
   -sish.pkpass string
-        Passphrase to use for the server private key (default "S3Cr3tP4$$phrAsE")
+      Passphrase to use for the server private key (default "S3Cr3tP4$$phrAsE")
   -sish.proxyprotoenabled
-        Whether or not to enable the use of the proxy protocol
+      Whether or not to enable the use of the proxy protocol
   -sish.proxyprotoversion string
-        What version of the proxy protocol to use. Can either be 1, 2, or userdefined. If userdefined, the user needs to add a command to SSH called proxyproto:version (ie proxyproto:1) (default "1")
+      What version of the proxy protocol to use. Can either be 1, 2, or userdefined. If userdefined, the user needs to add a command to SSH called proxyproto:version (ie proxyproto:1) (default "1")
   -sish.redirectroot
-        Whether or not to redirect the root domain (default true)
+      Whether or not to redirect the root domain
   -sish.redirectrootlocation string
-        Where to redirect the root domain to (default "https://github.com/antoniomika/sish")
+      Where to redirect the root domain to (default "https://github.com/vickeykumar/sish-lb")
   -sish.serviceconsoleenabled
-        Whether or not to enable the admin console for each service and send the info to users
+      Whether or not to enable the admin console for each service and send the info to users
   -sish.serviceconsoletoken string
-        The token to use for service access. Auto generated if empty.
+      The token to use for service access. Auto generated if empty.
   -sish.subdomainlen int
-        The length of the random subdomain to generate (default 3)
+      The length of the random subdomain to generate (default 3)
   -sish.tcpalias
-        Whether or not to allow the use of TCP aliasing
+      Whether or not to allow the use of TCP aliasing
   -sish.usegeodb
-        Whether or not to use the maxmind geodb
-  -sish.usersubdomainseparator
-        Separator to use when appending username to subdomain (default "-")
+      Whether or not to use the maxmind geodb
+  -sish.usersubdomainseparator string
+      Separator to use when appending username to subdomain (default "-")
   -sish.verifyorigin
-        Whether or not to verify origin on websocket connection (default true)
+      Whether or not to verify origin on websocket connection (default true)
   -sish.verifyssl
-        Whether or not to verify SSL on proxy connection (default true)
+      Whether or not to verify SSL on proxy connection (default true)
   -sish.version
-        Print version and exit
+      Print version and exit
   -sish.whitelistedcountries string
-        A comma separated list of whitelisted countries
+      A comma separated list of whitelisted countries
   -sish.whitelistedips string
-        A comma separated list of whitelisted ips
+      A comma separated list of whitelisted ips
 ```
