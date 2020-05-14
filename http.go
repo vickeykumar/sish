@@ -37,7 +37,7 @@ func startHTTPHandler(state *State) {
 		releaseMode = gin.DebugMode
 	}
 	gin.SetMode(releaseMode)
-
+	gin.DefaultWriter = log.Writer()
 	gin.ForceConsoleColor()
 
 	r := gin.New()
