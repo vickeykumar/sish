@@ -2,35 +2,38 @@ package main
 
 import (
 	"fmt"
-	"sync"
-	"sort"
+	"github.com/gin-gonic/gin"
+	"hash/fnv"
 	"log"
 	"math/rand"
-	"time"
-	"hash/fnv"
-	"github.com/gin-gonic/gin"
 	"net"
+	"sort"
+	"sync"
+	"time"
 )
 
-const DEFAULT_WEIGHT=10
+const DEFAULT_WEIGHT = 10
 const SEED = "seed"
+
 //serverpool comntains list of all proxyholders/backends
 type ServerPool struct {
-	ProxyHolders	[]*ProxyHolder
-	Totals 			[]int
-	Mux				sync.RWMutex
-	Max				int
+	ProxyHolders []*ProxyHolder
+	Totals       []int
+	Mux          sync.RWMutex
+	Max          int
 }
-
 
 func NewServerPool() *ServerPool {
 	return new(ServerPool)
 }
 
 func hash(s string) int64 {
-        h := fnv.New32a()
-        h.Write([]byte(s))
-        return int64(h.Sum32())
+	h := fnv.New32a()
+	_, err := h.Write([]byte(s))
+	if err != nil {
+		return 1
+	}
+	return int64(h.Sum32())
 }
 
 func GetSeed(c *gin.Context) int64 {
@@ -41,9 +44,9 @@ func GetSeed(c *gin.Context) int64 {
 	clientname := c.ClientIP()
 	if c.IsWebsocket() {
 		// only gets a new index hourly per hostname
-		return (time.Now().Unix()/3600)*hash(clientname)
+		return (time.Now().Unix() / 3600) * hash(clientname)
 	} else {
-		return time.Now().UnixNano()*hash(clientname)
+		return time.Now().UnixNano() * hash(clientname)
 	}
 }
 
@@ -63,7 +66,7 @@ func (s *ServerPool) Add(proxyholder *ProxyHolder) {
 	s.Mux.Lock()
 	defer s.Mux.Unlock()
 	if !*lbEnabled {
-		s.ProxyHolders = make([]*ProxyHolder,0)
+		s.ProxyHolders = make([]*ProxyHolder, 0)
 		s.ProxyHolders = append(s.ProxyHolders, proxyholder)
 		return
 	}
@@ -87,7 +90,7 @@ func (s *ServerPool) Delete(proxyholder *ProxyHolder) {
 	defer s.Mux.Unlock()
 	if !*lbEnabled {
 		if len(s.ProxyHolders) > 0 {
-			s.ProxyHolders = make([]*ProxyHolder,0)
+			s.ProxyHolders = make([]*ProxyHolder, 0)
 		}
 		return
 	}
@@ -126,10 +129,9 @@ func (s *ServerPool) Select(seed int64) (ph *ProxyHolder, ok bool) {
 		}
 		return ph, ok
 	}
-	
-	
+
 	rand.Seed(seed)
-	
+
 	r := rand.Intn(s.Max) + 1
 	i := sort.SearchInts(s.Totals, r)
 	if i < len(s.ProxyHolders) {
@@ -144,11 +146,10 @@ func (s *ServerPool) ToString() string {
 	s.Mux.RLock()
 	defer s.Mux.RUnlock()
 	for _, ph := range s.ProxyHolders {
-		str +=fmt.Sprint(ph.ProxyHost," : ",*ph)+"\n"
+		str += fmt.Sprint(ph.ProxyHost, " : ", *ph) + "\n"
 	}
 	return str
 }
-
 
 // httplistenermap
 type HTTPListenerMap struct {
@@ -171,7 +172,7 @@ func (m *HTTPListenerMap) AddtoServerPool(hostname string, proxyholder *ProxyHol
 		proxyholder.Weight = 1 // less weight for localhost
 	}
 	serverpool.Add(proxyholder)
-	log.Println(" client added to serverpool: ",clientname, proxyholder)
+	log.Println(" client added to serverpool: ", clientname, proxyholder)
 }
 
 // store
@@ -182,7 +183,7 @@ func (m *HTTPListenerMap) DeleteFromServerPool(hostname string, proxyholder *Pro
 	}
 	serverpool := spool.(*ServerPool)
 	serverpool.Delete(proxyholder)
-	if (serverpool.IsEmpty()) {
+	if serverpool.IsEmpty() {
 		m.Delete(hostname) // delete empty host table
 	}
 }
@@ -190,7 +191,7 @@ func (m *HTTPListenerMap) DeleteFromServerPool(hostname string, proxyholder *Pro
 // store
 func (m *HTTPListenerMap) LoadFromServerPool(hostname string, c *gin.Context) (ph *ProxyHolder, ok bool) {
 	spool, ok := m.Load(hostname)
-	if !ok || spool==nil {
+	if !ok || spool == nil {
 		return ph, false
 	}
 	serverpool := spool.(*ServerPool)

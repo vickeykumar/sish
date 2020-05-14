@@ -27,7 +27,7 @@ type ProxyHolder struct {
 	ProxyHost string
 	ProxyTo   string
 	Scheme    string
-	Weight	  uint		// weight of a single holder for lb.
+	Weight    uint // weight of a single holder for lb.
 	SSHConn   *SSHConnection
 }
 
@@ -88,7 +88,7 @@ func startHTTPHandler(state *State) {
 			loc, ok := state.HTTPListeners.Load(hostname)
 			if ok {
 				serverpool := loc.(*ServerPool)
-				val, ok := param.Keys[SEED]	//retrieve seed for this context
+				val, ok := param.Keys[SEED] //retrieve seed for this context
 				var seed int64 = -1
 				if ok {
 					seed = val.(int64)
