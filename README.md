@@ -1,7 +1,7 @@
 sish
 ====
 
-An open source serveo/ngrok alternative.
+An open source serveo/ngrok alternative. Forked from github/antoniomika/sish. Extends it to implement load balancing feature.
 
 
 LOAD BALANCER FEATURE
