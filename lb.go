@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"hash/fnv"
 	"log"
 	"math/rand"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const DEFAULT_WEIGHT = 10

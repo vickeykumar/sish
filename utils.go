@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/natefinch/lumberjack"
 	"io/ioutil"
 	"log"
 	mathrand "math/rand"
@@ -23,6 +22,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/logrusorgru/aurora"
 	"github.com/mikesmitty/edkey"
+	"github.com/natefinch/lumberjack"
 	"golang.org/x/crypto/ssh"
 )
 
