@@ -104,7 +104,7 @@ func (s *ServerPool) Delete(proxyholder *ProxyHolder) {
 		}
 	}
 	if index == -1 {
-		log.Println("Error deleting proxy : ", proxyholder.ProxyHost, proxyholder.ProxyTo)
+		log.Println("Error deleting proxy : ", proxyholder.ProxyHost, proxyholder.ProxyTo, " / proxy already deleted.")
 		return
 	}
 	//size reduction
