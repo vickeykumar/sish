@@ -102,11 +102,6 @@ func handleRemoteForward(newRequest *ssh.Request, sshConn *SSHConnection, state 
 
 	defer cleanupChanListener()
 
-	go func() {
-		<-sshConn.Close
-		cleanupChanListener()
-	}()
-
 	connType := "tcp"
 	if stringPort == "80" {
 		connType = "http"
@@ -134,6 +129,11 @@ func handleRemoteForward(newRequest *ssh.Request, sshConn *SSHConnection, state 
 
 		state.HTTPListeners.AddtoServerPool(host, pH)
 		defer state.HTTPListeners.DeleteFromServerPool(host, pH)
+		go func() {
+			<-sshConn.Close
+			cleanupChanListener()
+			state.HTTPListeners.DeleteFromServerPool(host, pH)
+		}()
 
 		if *adminEnabled || *serviceConsoleEnabled {
 			routeToken := *serviceConsoleToken
@@ -184,6 +184,10 @@ func handleRemoteForward(newRequest *ssh.Request, sshConn *SSHConnection, state 
 			log.Printf("%s forwarding started: https://%s%s -> %s for client: %s\n", aurora.BgBlue("HTTPS"), host, httpPortString, chanListener.Addr().String(), sshConn.SSHConn.RemoteAddr().String())
 		}
 	} else {
+		go func() {
+			<-sshConn.Close
+			cleanupChanListener()
+		}()
 		if handleTCPAliasing {
 			validAlias := getOpenAlias(check.Addr, stringPort, state, sshConn)
 
