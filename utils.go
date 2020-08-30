@@ -49,6 +49,14 @@ func (t *RetryTimer) get(client string) (int64, int64) {
 	return time.Now().Unix(), 1
 }
 
+func (t *RetryTimer) Find(client string) bool {
+	_, ok := (*t)[client]
+	if ok {
+		return true
+	}
+	return false
+}
+
 func (t *RetryTimer) set(client string, currtimestamp int64, counter int64) {
 	var timestamp CumtomCounter
 	timestamp.timestamp=currtimestamp
@@ -56,7 +64,7 @@ func (t *RetryTimer) set(client string, currtimestamp int64, counter int64) {
 	(*t)[client]=timestamp
 }
 
-func (t *RetryTimer) reset(client string) {
+func (t *RetryTimer) Reset(client string) {
 	t.set(client, time.Now().Unix(), 1)
 }
 
@@ -88,7 +96,7 @@ func (t *RetryTimer) Blocked(client string) bool {
 		timestamp, counter := t.get(client)
 		if timestamp+counter < time.Now().Unix() {
 			// MAX_RETRY hrs already passed, we can reset
-			t.reset(client)
+			t.Reset(client)
 			return false
 		}
 		log.Printf("client blocked: %s\n", client)

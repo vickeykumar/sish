@@ -291,6 +291,9 @@ func main() {
 				return
 			}
 
+			if rt.Find(clientRemote)==true {
+				rt.Reset(clientRemote)
+			}
 			holderConn := &SSHConnection{
 				SSHConn:   sshConn,
 				Listeners: &sync.Map{},
