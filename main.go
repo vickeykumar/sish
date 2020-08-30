@@ -252,6 +252,8 @@ func main() {
 		}
 	}()
 
+	// retry timer to prevent bruteforce ssh connections(failed connections)
+	rt := make(RetryTimer)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -261,7 +263,7 @@ func main() {
 
 		clientRemote, _, err := net.SplitHostPort(conn.RemoteAddr().String())
 
-		if err != nil || filter.Blocked(clientRemote) {
+		if err != nil || filter.Blocked(clientRemote) || rt.Blocked(clientRemote) {
 			conn.Close()
 			continue
 		}
@@ -285,6 +287,7 @@ func main() {
 			if err != nil {
 				conn.Close()
 				log.Println(err)
+				rt.TryLater(clientRemote)
 				return
 			}
 

@@ -31,6 +31,56 @@ var (
 	holderLock = sync.Mutex{}
 )
 
+// retry feature to prevent bruteforce ssh connections
+const MAX_RETRY=24*60*60 // allowed to retry
+
+type RetryTimer	map[string]int64
+
+func (t *RetryTimer) get(client string) int64 {
+	lasttimestamp, ok := (*t)[client]
+	if ok {
+		return lasttimestamp
+	}
+	return time.Now().Unix()
+}
+
+func (t *RetryTimer) set(client string, timestamp int64) {
+	(*t)[client]=timestamp
+}
+
+func (t *RetryTimer) getCounter(client string) int64 {
+	counter := t.get(client)-time.Now().Unix()
+	if counter <=0 {
+		counter = 1
+	}
+	return counter
+}
+
+func (t *RetryTimer) TryLater(client string) {
+	now := time.Now().Unix()
+	counter := t.get(client)-now
+	if counter <=0 {
+		counter = 1
+	}
+	if(counter < MAX_RETRY) {
+		counter = counter<<1
+	}
+	// increase counter by max a day
+	t.set(client, now+counter)
+	log.Printf("Pls retry client: %s after %d seconds.\n", client, counter)
+}
+
+func (t *RetryTimer) Blocked(client string) bool {
+	// client has retried and failed for more than 16/17 times already 
+	if t.getCounter(client) > MAX_RETRY {
+		log.Printf("client blocked: %s\n", client)
+		t.TryLater(client)
+		return true
+	}
+	return false
+}
+
+
 const LOG_PATH = "/tmp"
 
 func InitLogging(name string) {
