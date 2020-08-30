@@ -76,9 +76,9 @@ func (t *RetryTimer) TryLater(client string) {
 	}
 	if(counter < MAX_RETRY) {
 		counter = counter<<1
+		t.set(client, now, counter)
 	}
 	// increase counter by max a day
-	t.set(client, now, counter)
 	log.Printf("Pls retry client: %s after %d seconds.\n", client, counter)
 }
 
